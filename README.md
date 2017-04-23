@@ -1,5 +1,5 @@
 # gpg-helper
-Letters instead of postcards! If you send a mail you have to consider it a postcard unless it is encrypted with Pretty Good Privacy (PGP).
+Letters instead of postcards! If you send a mail you have to consider it a postcard unless it is encrypted. This can be done with Pretty Good Privacy (PGP).
 Emails can easily be en/decrypted using Thunderbird's EnigMail plugin. The keys can be managed using this shell script.
 The GnuPG (gpg2) wrapper can help you manage your PGP keys.
 It improves usability by providing human readable parameters and a help text that covers most frequently used workflows.
@@ -149,3 +149,5 @@ Troubleshooting:
   If the key server responds with 'no data' to a key search request try again.
   Some keyservers do not (yet) have all keys.
 ```
+
+If you read and understand everything before this line and know how to use gpg2 you may not need this script anymore.
