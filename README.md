@@ -17,6 +17,8 @@ The changes include:
 
 ## TL;DR
 `$ ./gpg-helper.sh help`
+
+```
 gpg-helper is a simple wrapper script around gpg2 (GnuPG). [GNUPG]
 It simplifies usage and encorporates some best practices.
 GnuPG configuration and keyring is stored in /home/max/.gnupg. [GNUPGHOME]
@@ -144,3 +146,4 @@ Troubleshooting:
       keyserver hkp://pool.sks-keyservers.net
   If the key server responds with 'no data' to a key search request try again.
   Some keyservers do not (yet) have all keys.
+```
