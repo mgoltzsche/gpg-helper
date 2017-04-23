@@ -43,7 +43,7 @@ usage() {
 		    encrypt -r UID… [FILE] Encrypts the file using the recipient's public key.
 		    decrypt [FILE]         Decrypts the file using your private key.
 		    clearsign [FILE [OUT]] Create signature containing plaintext content.
-		    sign FILE [OUTSIGFILE] Create detached signature with your private key.
+		    sign FILE [OUTSIGFILE] Create detached signature using your private key.
 		    verify [SIGFILE [FILE]]Verify file using signature + signer's public key.
 		  PARAMETERS
 		    UID                    A user's identifier or name.
