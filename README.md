@@ -1,7 +1,9 @@
 # gpg-helper
-Do you want to make sure your privacy stays untouched? Use PGP!
-
-This small wrapper script around GnuPG (gpg2) aims to help you understand and use PGP. It configures gpg2 using best practices. The parameters are human readable - different to those of gpg. The help text covers most frequently used workflows.
+Letters instead of postcards! If you send a mail you have to consider it a postcard unless it is encrypted with Pretty Good Privacy (PGP).
+Emails can easily be en/decrypted using Thunderbird's EnigMail plugin. The keys can be managed using this shell script.
+The GnuPG (gpg2) wrapper can help you manage your PGP keys.
+It improves usability by providing human readable parameters and a help text that covers most frequently used workflows.
+Furthermore it improves security by generating a secure configuration using best practices.
 
 ## Requirements
 GnuPG >=2.1.11
@@ -9,7 +11,7 @@ GnuPG >=2.1.11
 ## GnuPG configuration changes
 To improve security the script overwrites the local gpg configuration in GNUPGHOME (default: ~/.gnupg) after a prompt.
 The configuration written by this script is not GnuPG 1 (gpg) compatible. If you have a GnuPG 1 keystore it will be converted to a GnuPG 2 keystore.
-The changes include:
+Configuration features include:
 - the use of high available key servers via the HKPS protocol: hkps://hkps.pool.sks-keyservers.net
 - strong cipher algorithm preference
 - output of longer keyids (hashes)
