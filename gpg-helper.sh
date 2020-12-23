@@ -23,28 +23,29 @@ usage() {
 
 		Usage: $0 COMMAND
 		  COMMAND
-		    help                   Shows this help text.
-		    gpgconfig              Writes gpg.conf and dirmngr.conf interactively.
-		    listkeys [KEYID|UID]   Lists all keys in your keyring.
-		    listsecretkeys         Lists your secret keys.
-		    genkey                 Generates a new key pair interactively.
-		    editkey KEYID [CMD]    Edit the key interactively.
-		    deletekey KEYID        Delete the key from the local keyring.
-		    deletesecretkey KEYID  Delete the secret key from the local keyring.
-		    genrevoke KEYID FILE   Generates a key revocation certificate.
-		    fingerprint KEYID      Shows the key's fingerprint.
-		    signkey KEYID          Signs a key in the keyring and prints it to stdout.
-		    fexport KEYID [FILE]   Exports the key to the file provided or stdout.
-		    fimport FILE           Imports the keys from a file into your keyring.
-		    export KEYID…          Exports keys from your keyring to key servers.
-		    import KEYID…          Imports keys from the key servers into your keyring.
-		    search UID             Searches for available keys by UID on key servers.
-		    refresh [KEYID]        Reloads all imported keys from the key servers.
-		    encrypt -r UID… [FILE] Encrypts the file using the recipient's public key.
-		    decrypt [FILE]         Decrypts the file using your private key.
-		    clearsign [FILE [OUT]] Create signature containing plaintext content.
-		    sign FILE [OUTSIGFILE] Create detached signature using your private key.
-		    verify [SIGFILE [FILE]]Verify file using signature + signer's public key.
+		    help                      Shows this help text.
+		    gpgconfig                 Writes gpg.conf and dirmngr.conf interactively.
+		    listkeys [KEYID|UID]      Lists all keys in your keyring.
+		    listsecretkeys            Lists your secret keys.
+		    genkey                    Generates a new key pair interactively.
+		    editkey KEYID [CMD]       Edit the key interactively.
+		    deletekey KEYID           Delete the key from the local keyring.
+		    deletesecretkey KEYID     Delete the secret key from the local keyring.
+		    genrevoke KEYID FILE      Generates a key revocation certificate.
+		    fingerprint KEYID         Shows the key's fingerprint.
+		    signkey KEYID             Signs a key in the keyring and prints it to stdout.
+		    fexport KEYID [FILE]      Exports the public key to the provided file or stdout.
+		    exportsecret KEYID [FILE] Exports the secret sub key to the proviced file or stdout.
+		    fimport FILE              Imports the keys from a file into your keyring.
+		    export KEYID…             Exports keys from your keyring to key servers.
+		    import KEYID…             Imports keys from the key servers into your keyring.
+		    search UID                Searches for available keys by UID on key servers.
+		    refresh [KEYID]           Reloads all imported keys from the key servers.
+		    encrypt -r UID… [FILE]    Encrypts the file using the recipient's public key.
+		    decrypt [FILE]            Decrypts the file using your private key.
+		    clearsign [FILE [OUT]]    Create signature containing plaintext content.
+		    sign FILE [OUTSIGFILE]    Create detached signature using your private key.
+		    verify [SIGFILE [FILE]]   Verify file using signature + signer's public key.
 		  PARAMETERS
 		    UID                    A user's identifier or name.
 		                           For instance 'Max Mustermann' or user@example.org.
@@ -91,6 +92,8 @@ usage() {
 		  Mark compromised key as revoked using your initially created revocation cert:
 		    $0 fimport REVOCATIONCERTFILE
 		    $0 export KEYID
+		  Export a secret sub key with a separate password (to automate signing or for encryption on a mobile device):
+			$0 exportsecret KEYID [OUTFILE]
 		Run $GNUPG --help for more options.
 
 		Key type identifiers as listed in $GNUPG output:
@@ -361,6 +364,35 @@ case "$COMMAND" in
 	fexport)
 		[ $# -eq 1 -o $# -eq 2 ] || usage
 		"$GNUPG" $OPTS -a -o "${2:--}" --export "$1"
+	;;
+	exportsecret)
+		[ $# -eq 1 -o $# -eq 2 ] || usage
+		# Export a secret sub key only (!) and encrypt it with a separate password
+		stty -echo
+		echo "Exporting secret sub key $1 to ${2:--}" >&2
+		printf 'Enter current key password: ' >&2
+		read -r CURR_PASSWD
+		printf '\nEnter new key password: ' >&2
+		read -r NEW_PASSWD
+		printf '\nRepeat new key password: ' >&2
+		read -r NEW_PASSWD_REPEAT
+		stty echo
+		echo >&2
+		[ "$NEW_PASSWD" = "$NEW_PASSWD_REPEAT" ] || (echo New passwords did not match >&2; false) || exit 1
+		TMPDIR=$(mktemp -d) && (
+			set -e
+			# Export sub key from current key ring into a temporary one
+			echo "$CURR_PASSWD" | "$GNUPG" $OPTS --pinentry-mode loopback --command-fd 0 -a -o $TMPDIR/secret-subkey.pgp --export-secret-subkeys "$1!" || exit 1
+			export GNUPGHOME=$TMPDIR/gnupg
+			mkdir -m700 $GNUPGHOME &&
+			echo "$CURR_PASSWD" | "$GNUPG" $OPTS --pinentry-mode loopback --command-fd 0 --import $TMPDIR/secret-subkey.pgp &&
+			# Set the new password within the temporary key ring
+			printf '%s\n%s\n%s\n' "$CURR_PASSWD" "$NEW_PASSWD" "$NEW_PASSWD_REPEAT" | "$GNUPG" $OPTS --pinentry-mode loopback --command-fd 0 --edit-key "$1" passwd &&
+			# Export the key
+			echo "$NEW_PASSWD" | "$GNUPG" $OPTS --pinentry-mode loopback --command-fd 0 -a -o "${2:--}" --export-secret-subkeys "$1!"
+		) || STATUS=1
+		rm -rf $TMPDIR
+		exit $STATUS
 	;;
 	search)
 		[ $# -ge 1 ] || usage
