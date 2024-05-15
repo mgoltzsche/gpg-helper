@@ -162,8 +162,7 @@ listEffectiveConfig() {
 
 defaultDirmngrConf() {
 	cat <<-EOF
-		keyserver hkps://hkps.pool.sks-keyservers.net
-		hkp-cacert $SKSKEYSERVERCA
+		keyserver hkps://keys.openpgp.org
 	EOF
 }
 
@@ -185,11 +184,6 @@ defaultGpgConf() {
 }
 
 checkAndFixDirmngrConf() {
-	SKSKEYSERVERCA=/usr/share/gnupg2/sks-keyservers.netCA.pem
-	if [ ! -f "$SKSKEYSERVERCA" ]; then
-		SKSKEYSERVERCA="$GNUPGHOME/sks-keyservers.netCA.pem"
-		([ -f "$SKSKEYSERVERCA" ] || curl -fSL -o "$SKSKEYSERVERCA" 'https://sks-keyservers.net/sks-keyservers.netCA.pem') || return 1
-	fi
 	if [ ! "$(defaultDirmngrConf)" = "$(cat "$GNUPGHOME/dirmngr.conf" 2>/dev/null)" ]; then
 		if [ -f "$GNUPGHOME/dirmngr.conf" ]; then
 			# Backup and replace dirmngr.conf after confirmation prompt
@@ -244,7 +238,7 @@ pubKeyType() {
 }
 
 
-GNUPG="${GNUPG:-gpg2}" # If it differs on your system: export GNUPG=yourgpg
+GNUPG="${GNUPG:-gpg}" # If it differs on your system: export GNUPG=yourgpg
 GNUPGHOME=${GNUPGHOME:-~/.gnupg}
 OPTS=${GPG_OPTS:-' --openpgp'}
 COMMAND="$1"
@@ -254,7 +248,7 @@ ARGS="$@"
 if ! "$GNUPG" --help >/dev/null || ! curl --help >/dev/null; then
 	cat >&2 <<-EOF
 		$GNUPG or curl is not installed on your system! Set location in GNUPG or
-		install it by typing e.g. apt-get install gnupg2 curl
+		install it by typing e.g. apt-get install gnupg curl
 	EOF
 	exit 1
 fi
