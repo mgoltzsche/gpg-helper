@@ -43,6 +43,7 @@ usage() {
 		    refresh [KEYID]           Reloads all imported keys from the key servers.
 		    encrypt -r UID… [FILE]    Encrypts the file using the recipient's public key.
 		    decrypt [FILE]            Decrypts the file using your private key.
+			edit FILE                 Opens the decrypted file with an editor and encrypts the changes afterwards.
 		    clearsign [FILE [OUT]]    Create signature containing plaintext content.
 		    sign FILE [OUTSIGFILE]    Create detached signature using your private key.
 		    verify [SIGFILE [FILE]]   Verify file using signature + signer's public key.
@@ -82,6 +83,8 @@ usage() {
 		    $0 encrypt -r 'John Doe' -r user@example.org /secret/file
 		  Decrypt an encrypted file (works only if you have the matching private key):
 		    $0 decrypt /secret/file.asc
+		  Edit an encrypted file interactively (opens an editor):
+		    $0 edit path/to/file
 		  Extend a key's expiration date:
 		    $0 editkey 0xA3E57D6E5B31B1FB
 		    gpg> key 1
@@ -238,9 +241,10 @@ pubKeyType() {
 }
 
 
-GNUPG="${GNUPG:-gpg}" # If it differs on your system: export GNUPG=yourgpg
-GNUPGHOME=${GNUPGHOME:-~/.gnupg}
-OPTS=${GPG_OPTS:-' --openpgp'}
+: ${GNUPG:=gpg} # If it differs on your system: export GNUPG=yourgpg
+: ${GNUPGHOME:=~/.gnupg}
+: ${GPG_OPTS:=' --openpgp'}
+
 COMMAND="$1"
 ARGS="$@"
 
@@ -405,7 +409,7 @@ case "$COMMAND" in
 	;;
 	encrypt)
 		[ $# -ge 2 ] || usage
-		"$GNUPG" $OPTS -a -o - --encrypt "$@"
+		"$GNUPG" $OPTS -ao - --encrypt "$@"
 	;;
 	decrypt)
 		[ $# -le 1 ] || usage
@@ -414,6 +418,36 @@ case "$COMMAND" in
 		else # Use stdin
 			"$GNUPG" $OPTS -o - --decrypt
 		fi
+	;;
+	edit)
+		[ $# -eq 1 ] || usage
+		: ${GPG_IDENTITY:=max.goltzsche@gmail.com}
+		: ${SAFE_TMP_DIR:=/dev/shm} # use tmpfs dir that is not written to disk
+		: ${EDITOR:=vim}
+		if [ ! -f "$1" ]; then
+			echo "File $1 does not exist!" >&2
+			printf "Do you want to create a new encrypted file in that location? (y|N) " "$1"
+			read PROMPT
+			[ "$PROMPT" = y -o "$PROMPT" = Y ] || exit 1
+			echo | "$GNUPG" $OPTS -ao "$1" --encrypt -r "$GPG_IDENTITY" -
+		fi
+		TMP_FILE="$(mktemp -p "$SAFE_TMP_DIR")" || exit 1
+		rm -f "$TMP_FILE" &&
+		"$GNUPG" $OPTS -o "$TMP_FILE" --decrypt "$1" &&
+		"$EDITOR" "$TMP_FILE" &&
+		(
+			([ "$("$GNUPG" $OPTS -o - --decrypt "$1" 2>/dev/null)" = "$(cat "$TMP_FILE")" ] &&
+				echo No changes made ||
+				(echo Writing changes to encrypted source file &&
+				rm -f "${1}.tmp" &&
+				cp "$1" "${1}.backup$(date +%Y%m%d%H%M%S)" &&
+				"$GNUPG" $OPTS -ao "${1}.tmp" --encrypt -r "$GPG_IDENTITY" "$TMP_FILE" &&
+				mv "${1}.tmp" "$1" &&
+				find "$(dirname "$1")" -name "$(basename "$1")"'.backup*' | sort -r | tail +10 | xargs -n1 rm -f))
+			STATUS=$?
+			rm -f "$TMP_FILE" "${1}.tmp"
+			exit $STATUS
+		)
 	;;
 	sign)
 		[ $# -eq 1 -o $# -eq 2 ] || usage
